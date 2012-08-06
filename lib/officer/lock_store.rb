@@ -8,10 +8,12 @@ module Officer
 
   class Lock
     attr_reader :name
+    attr_reader :size
     attr_reader :queue
 
-    def initialize name
-      @name = name
+    def initialize name, size = 1
+      @name = "#{name}_#{size}"
+      @size = size.to_i
       @queue = LockQueue.new
     end
   end
@@ -52,6 +54,10 @@ module Officer
     end
 
     def acquire name, connection, options={}
+      name, size = split_name(name)
+
+      lockname = "#{name}_#{size}"
+
       if options[:queue_max]
         lock = @locks[name]
 
@@ -63,20 +69,22 @@ module Officer
 
       @acquire_counter += 1
 
-      lock = @locks[name] ||= Lock.new(name)
+      lock = @locks[name] ||= Lock.new(name, size)
 
       if lock.queue.include? connection
-        lock.queue.first == connection ? connection.already_acquired(name) : connection.queued(name, options)
+        lock.queue[0..lock.size-1].include?(connection) ? connection.already_acquired(name) : connection.queued(name, options)
 
       else
         lock.queue << connection
         (@connections[connection] ||= Set.new) << name
 
-        lock.queue.count == 1 ? connection.acquired(name) : connection.queued(name, options)
+        lock.queue.count <= lock.size ? connection.acquired(name) : connection.queued(name, options)
       end
     end
 
     def release name, connection, options={}
+      name, size = split_name(name)
+
       if options[:callback].nil?
         options[:callback] = true
       end
@@ -93,15 +101,14 @@ module Officer
 
       # If connecton has the lock, release it and let the next
       # connection know that it has acquired the lock.
-      if lock.queue.first == connection
-        lock.queue.shift
+      if lock.queue[0..lock.size-1].delete(connection)
         connection.released name if options[:callback]
 
-        if next_connection = lock.queue.first
+        if next_connection = lock.queue[lock.size-1]
           next_connection.acquired name
-        else
-          @locks.delete name
         end
+
+        @locks.delete if lock.queue.count = 0
 
       # If the connection is queued and doesn't have the lock,
       # dequeue it and leave the other connections alone.
@@ -125,6 +132,8 @@ module Officer
     end
 
     def timeout name, connection
+      name, size = split_name(name)
+
       lock = @locks[name]
       names = @connections[connection]
 
@@ -168,6 +177,15 @@ module Officer
           conn.close_connection
         end
       end
+    end
+
+    protected
+    def split_name(name)
+      name_array = name.split("#")
+      size = name_array.pop || 1
+      name = name_array.join("#")
+
+      [name, size]
     end
   end
 
