@@ -19,7 +19,7 @@ Gem::Specification.new do |gem|
   gem.add_dependency('json', ['>= 0'])
   gem.add_dependency('daemons', ['>= 0'])
   gem.add_dependency('choice', ['>= 0'])
-  gem.add_dependency('semaphore', ['>= 0.0.1'])
+  #gem.add_dependency('semaphore', ['>= 0.0.1'])
 
   gem.add_development_dependency('rake', ['>= 0'])
   gem.add_development_dependency('rspec', ['>= 0'])
