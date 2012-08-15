@@ -28,6 +28,7 @@ module Officer
       @connections = {} # Connection => Set(name, ...)
       @locked_connections = {} # {lock_id => Connection}
       @acquire_counter = 0
+      @mutex = Mutex.new
     end
 
     def log_state
@@ -71,17 +72,18 @@ module Officer
       @acquire_counter += 1
 
       lock = @locks[name] ||= Lock.new(name, size)
-      if lock.queue.count <= lock.size
-        if lock.queue[0..lock.size-1].include?(connection)
-          connection.already_acquired(name)
-        else
-          lock.queue << connection
-          lock_id = lock_connection(connection, lock)
-          (@connections[connection] ||= Set.new) << name
 
-          connection.acquired name, lock_id
-        end
-      elsif lock.queue.count >= lock.size 
+      if lock.queue[0..lock.size-1].include?(connection)
+        return connection.already_acquired(name)
+      end
+
+      if lock.queue.count < lock.size
+        lock.queue << connection
+        lock_id = lock_connection(connection, lock)
+        (@connections[connection] ||= Set.new) << name
+
+        connection.acquired name, lock_id
+      else
         lock.queue << connection
         (@connections[connection] ||= Set.new) << name
 
@@ -109,6 +111,7 @@ module Officer
       if index = lock.queue.index(connection)
         if index < lock.size
           lock.queue.delete_at(index)
+          release_connection(connection, lock)
 
           connection.released name if options[:callback]
 
@@ -200,10 +203,22 @@ module Officer
     end
 
     def lock_connection(connection, lock)
-      @locked_connections[lock.lock_ids.first] = connection
-      id = lock.lock_ids.shift
-      lock.lock_ids.push(id)
-      id
+      @mutex.synchronize do
+        @locked_connections[lock.lock_ids.first] = connection
+        lock_id = lock.lock_ids.shift
+        lock.lock_ids.push(lock_id)
+        lock_id
+      end
+    end
+
+    def release_connection(connection, lock)
+      @mutex.synchronize do
+        if lock_id = @locked_connections.key(connection)
+          lock.lock_ids.delete(lock_id)
+          lock.lock_ids.insert(0, lock_id)
+          lock_id
+        end
+      end
     end
   end
 
