@@ -10,10 +10,12 @@ module Officer
     attr_reader :name
     attr_reader :size
     attr_reader :queue
+    attr_reader :lock_ids
 
     def initialize name, size = 1
-      @name = "#{name}_#{size}"
+      @name = name
       @size = size.to_i
+      @lock_ids = (0..@size-1).to_a
       @queue = LockQueue.new
     end
   end
@@ -24,6 +26,7 @@ module Officer
     def initialize
       @locks = {} # name => Lock
       @connections = {} # Connection => Set(name, ...)
+      @locked_connections = {} # {lock_id => Connection}
       @acquire_counter = 0
     end
 
@@ -56,8 +59,6 @@ module Officer
     def acquire name, connection, options={}
       name, size = split_name(name)
 
-      lockname = "#{name}_#{size}"
-
       if options[:queue_max]
         lock = @locks[name]
 
@@ -70,15 +71,22 @@ module Officer
       @acquire_counter += 1
 
       lock = @locks[name] ||= Lock.new(name, size)
+      puts lock.queue.inspect
+      if lock.queue.count < lock.size
+        if lock.queue[0..lock.size-1].include?(connection)
+          connection.already_acquired(name)
+        else
+          lock.queue << connection
+          lock_id = lock_connection(connection, lock)
+          (@connections[connection] ||= Set.new) << name
 
-      if lock.queue.include? connection
-        lock.queue[0..lock.size-1].include?(connection) ? connection.already_acquired(name) : connection.queued(name, options)
-
-      else
+          connection.acquired name, lock_id
+        end
+      elsif lock.queue.count >= lock.size 
         lock.queue << connection
         (@connections[connection] ||= Set.new) << name
 
-        lock.queue.count <= lock.size ? connection.acquired(name) : connection.queued(name, options)
+        connection.queued(name, options)
       end
     end
 
@@ -88,39 +96,41 @@ module Officer
       if options[:callback].nil?
         options[:callback] = true
       end
-
       lock = @locks[name]
       names = @connections[connection]
-
       # Client should only be able to release a lock that
       # exists and that it has previously queued.
-      if lock.nil? || !names.include?(name)
+      if lock.nil? || names.nil? || !names.include?(name)
         connection.release_failed(name) if options[:callback]
         return
       end
 
       # If connecton has the lock, release it and let the next
       # connection know that it has acquired the lock.
-      if lock.queue[0..lock.size-1].delete(connection)
-        connection.released name if options[:callback]
+      if index = lock.queue.index(connection)
+        if index < lock.size
+          lock.queue.delete_at(index)
 
-        if next_connection = lock.queue[lock.size-1]
-          next_connection.acquired name
+          connection.released name if options[:callback]
+
+          if next_connection = lock.queue[lock.size-1]
+            lock_id = lock_connection(next_connection, lock)
+            next_connection.acquired name, lock_id
+          end
+          @locks.delete name if lock.queue.count == 0
+
+        # If the connection is queued and doesn't have the lock,
+        # dequeue it and leave the other connections alone.
+        else
+          lock.queue.delete connection
+          connection.released name
         end
-
-        @locks.delete if lock.queue.count = 0
-
-      # If the connection is queued and doesn't have the lock,
-      # dequeue it and leave the other connections alone.
-      else
-        lock.queue.delete connection
-        connection.released name
+        names.delete name
       end
-
-      names.delete name
     end
 
     def reset connection
+      # names = @connections[connection] || []
       names = @connections[connection] || Set.new
 
       names.each do |name|
@@ -181,11 +191,20 @@ module Officer
 
     protected
     def split_name(name)
-      name_array = name.split("#")
-      size = name_array.pop || 1
-      name = name_array.join("#")
-
+      if name.include?("#")
+        name_array = name.split("#")
+        size = (name_array.last.to_i > 0 && name_array.size > 1) ? name_array.last.to_i : 1
+      else
+        size = 1
+      end
       [name, size]
+    end
+
+    def lock_connection(connection, lock)
+      @locked_connections[lock.lock_ids.first] = connection
+      id = lock.lock_ids.shift
+      lock.lock_ids.push(id)
+      id
     end
   end
 

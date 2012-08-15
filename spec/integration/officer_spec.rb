@@ -164,14 +164,14 @@ describe Officer do
       end
 
       it "should allow a client to request and release a lock" do
-        @client.lock("testlock").should eq({"result" => "acquired", "name" => "testlock"})
+        @client.lock("testlock").should eq({"result" => "acquired", "name" => "testlock", "lock_id" => "0"})
         @client.my_locks.should eq({"value"=>["testlock"], "result"=>"my_locks"})
         @client.unlock("testlock")
         @client.my_locks.should eq({"value"=>[], "result"=>"my_locks"})
       end
 
       it "should inform the client they already have a lock if they previously locked it" do
-        @client.lock("testlock")
+        @client.lock("testlock").should eq({"result" => "acquired", "name" => "testlock", "lock_id" => "0"})
         @client.lock("testlock").should eq({"result" => "already_acquired", "name" => "testlock"})
       end
 
@@ -307,6 +307,68 @@ describe Officer do
         @socket.write("{\"command\":\"lock\",\"name\":\"testlock\"}\n")
         @socket.write("{\"command\":\"unlock\",\"name\":\"testlock\"}\n")
         JSON.parse(@socket.gets("\n").chomp).should eq({"result" => "released", "name" => "testlock"})
+      end
+    end
+
+    describe "NEW: server support for multiple locks" do
+      before do
+        @client1 = Officer::Client.new
+        @client2 = Officer::Client.new
+        @client3 = Officer::Client.new
+
+        @client1_src_port = @client1.instance_variable_get('@socket').addr[1]
+        @client2_src_port = @client2.instance_variable_get('@socket').addr[1]
+        @client3_src_port = @client2.instance_variable_get('@socket').addr[1]
+      end
+
+      after do
+        @client1.send("disconnect")
+        @client1 = nil
+        @client2.send("disconnect")
+        @client2 = nil
+        @client3.send("disconnect")
+        @client3 = nil
+      end
+
+      it "should allow a client to obtaining and releasing the number of allowed locks" do
+        @client1.lock("testlock#2").should eq({"result" => "acquired", "name" => "testlock#2", "lock_id" => "0"})
+        @client2.lock("testlock#2").should eq({"result" => "acquired", "name" => "testlock#2", "lock_id" => "1"})
+        @client1.locks.should eq({"value"=>{"testlock#2"=>["127.0.0.1:#{@client1_src_port}", "127.0.0.1:#{@client2_src_port}"]}, "result"=>"locks"})
+        @client2.locks.should eq({"value"=>{"testlock#2"=>["127.0.0.1:#{@client1_src_port}", "127.0.0.1:#{@client2_src_port}"]}, "result"=>"locks"})
+        @client1.my_locks.should eq({"value"=>["testlock#2"], "result"=>"my_locks"})
+        @client2.my_locks.should eq({"value"=>["testlock#2"], "result"=>"my_locks"})
+        @client1.unlock("testlock#2")
+        @client2.unlock("testlock#2")
+        @client1.locks.should eq({"value"=>{}, "result"=>"locks"})
+      end
+
+      it "should not allow a client to request a lock that is already acquired" do
+        @client1.lock("testlock#2").should eq({"result" => "acquired", "name" => "testlock#2", "lock_id" => "0"})
+        @client1.lock("testlock#2").should eq({"result" => "already_acquired", "name" => "testlock#2"})
+        @client2.unlock("testlock#2")
+      end
+
+      it "should allow timeout if number of allowed connections is reached" do
+        @client1.lock("testlock#2").should eq({"result" => "acquired", "name" => "testlock#2", "lock_id" => "0"})
+        @client2.lock("testlock#2").should eq({"result" => "acquired", "name" => "testlock#2", "lock_id" => "1"})
+        @client3.lock("testlock#2", :timeout => 0).should eq(
+          {"result"=>"timed_out", "name"=>"testlock#2", "queue"=>["127.0.0.1:#{@client1_src_port}", "127.0.0.1:#{@client2_src_port}"]}
+        )
+      end
+
+      it "should queue a connection if number of allowed connections is reached and allow connection if a lock is released" do
+        t = Thread.new do
+          @client1.lock("testlock#2").should eq({"result" => "acquired", "name" => "testlock#2", "lock_id" => "0"})
+          @client2.lock("testlock#2").should eq({"result" => "acquired", "name" => "testlock#2", "lock_id" => "1"})
+          @client3.lock("testlock#2").should eq({"result" => "acquired", "name" => "testlock#2", "lock_id" => "0"})
+        end
+        
+        t2 = Thread.new do
+          puts @client1.locks
+          @client1.unlock
+          puts @client1.locks
+        end
+        sleep 5
       end
     end
   end

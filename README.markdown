@@ -69,6 +69,12 @@ Options:
 - :timeout => The number of seconds to wait for a lock to become available (default: wait forever).
 - :queue_max => If the lock queue length is greater than :queue_max then don't wait for the lock (default: infinite).
 
+#### How to use n Semaphore
+
+To allow multiple clients to use the same lock you can use n Semaphore functionality.
+Officer can use a n Semaphore in stead of a Mutex by adding #n to the lock name.
+
+    client.lock 'some_lock_name#2' # will create a 2 semaphore
 
 ### Unlock
 
