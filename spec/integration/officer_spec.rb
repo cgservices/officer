@@ -360,15 +360,14 @@ describe Officer do
         t = Thread.new do
           @client1.lock("testlock#2").should eq({"result" => "acquired", "name" => "testlock#2", "lock_id" => "0"})
           @client2.lock("testlock#2").should eq({"result" => "acquired", "name" => "testlock#2", "lock_id" => "1"})
-          @client3.lock("testlock#2").should eq({"result" => "acquired", "name" => "testlock#2", "lock_id" => "0"})
+          @client3.lock("testlock#2").should eq({"result" => "acquired", "name" => "testlock#2", "lock_id" => "1"})
         end
         
         t2 = Thread.new do
-          puts @client1.locks
-          @client1.unlock
-          puts @client1.locks
+          sleep 2
+          @client2.unlock("testlock#2")
         end
-        sleep 5
+        t.join
       end
     end
   end
