@@ -71,8 +71,7 @@ module Officer
       @acquire_counter += 1
 
       lock = @locks[name] ||= Lock.new(name, size)
-      puts lock.queue.inspect
-      if lock.queue.count < lock.size
+      if lock.queue.count <= lock.size
         if lock.queue[0..lock.size-1].include?(connection)
           connection.already_acquired(name)
         else
