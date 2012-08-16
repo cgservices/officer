@@ -37,7 +37,7 @@ module Officer
       def acquired name, lock_id
         @timers.delete(name).cancel if @timers[name]
 
-        send_result 'acquired', :name => name, :lock_id => lock_id.to_s
+        send_result 'acquired', :name => name, :id => lock_id.to_s
       end
 
       def already_acquired name
