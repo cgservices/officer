@@ -54,6 +54,20 @@ module Officer
       result
     end
 
+    # Implement try_lock by using queue_max => 1
+    def try_lock name, options={}
+      result = execute :command => 'lock', :name => name_with_ns(name),
+        :timeout => options[:timeout], :queue_max => 1
+      strip_ns_from_hash result, 'name'
+
+      if result['name'] != name || !%w(acquired already_acquired timed_out queue_maxed).include?(result['result'])
+        force_shutdown
+      end
+
+      result
+
+    end
+
     def unlock name
       result = execute :command => 'unlock', :name => name_with_ns(name)
       strip_ns_from_hash result, 'name'
@@ -83,6 +97,27 @@ module Officer
           raise UnlockError unless response['result'] == 'released'
         end
       end
+    end
+
+    def with_try_lock name, options={}
+      response = try_lock name, options
+      result = response['result']
+      queue = (response['queue'] || []).join ','
+
+      raise LockTimeoutError.new("queue=#{queue}") if result == 'timed_out'
+      raise LockQueuedMaxError.new("queue=#{queue}") if result == 'queue_maxed'
+      raise LockError unless %w(acquired already_acquired).include?(result)
+
+      begin
+        yield
+      ensure
+        # Deal with nested with_lock calls.  Only the outer most call should tell the server to unlock.
+        if result == 'acquired'
+          response = unlock name
+          raise UnlockError unless response['result'] == 'released'
+        end
+      end
+
     end
 
     def reset
