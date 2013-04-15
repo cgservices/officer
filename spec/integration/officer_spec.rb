@@ -134,6 +134,7 @@ describe Officer do
       locks["value"].length.should eq(4)
       locks["result"].should eq("locks")
     end
+
   end
 
   describe "COMMAND: my_locks" do
@@ -156,11 +157,17 @@ describe Officer do
     describe "basic functionality" do
       before do
         @client = Officer::Client.new
+        @client_src_port = @client.instance_variable_get('@socket').addr[1]
+
+        @client2 = Officer::Client.new
+
       end
 
       after do
         @client.send("disconnect")
         @client = nil
+        @client2.send("disconnect")
+        @client2 = nil
       end
 
       it "should allow a client to request and release a lock" do
@@ -177,6 +184,42 @@ describe Officer do
 
       it "should inform the client they don't have a lock if they try to unlock a lock that they don't have" do
         @client.unlock("testlock").should eq({"result" => "release_failed", "name" => "testlock"})
+      end
+
+      it "should set a lock with try_lock" do
+        @client.try_lock("testlock").should eq({"result" => "acquired", "name" => "testlock", "id" => "0"})
+        @client.unlock("testlock")
+      end
+
+      it "should set a lock with try_lock with block" do
+        @client.with_try_lock("testlock") do
+          @client.my_locks.should eq({"value"=>["testlock"], "result"=>"my_locks"})
+        end
+      end
+
+      it "should continue the process if a try_lock doesn't succeed" do
+        @client.lock("testlock").should eq({"result" => "acquired", "name" => "testlock", "id" => "0"})
+        expected = {
+          "result" => "queue_maxed",
+          "name" => "testlock",
+          "queue" => ["127.0.0.1:#{@client_src_port}"]
+        }
+
+        actual = @client2.try_lock("testlock")
+        actual.class.should eq(Hash)
+        actual["result"].should eq(expected["result"])
+        actual["name"].should eq(expected["name"])
+        actual["queue"].sort.should eq(expected["queue"].sort)
+
+        @client.unlock("testlock")
+      end
+
+      it "should continue the process if a try_lock doesn't succeed with block" do
+        @client.lock("testlock").should eq({"result" => "acquired", "name" => "testlock", "id" => "0"})
+        lambda {
+          @client2.with_try_lock("testlock") {}
+        }.should raise_error(Officer::LockQueuedMaxError)
+        @client.unlock("testlock")
       end
     end
 
@@ -362,7 +405,7 @@ describe Officer do
           @client2.lock("testlock#2").should eq({"result" => "acquired", "name" => "testlock#2", "id" => "1"})
           @client3.lock("testlock#2").should eq({"result" => "acquired", "name" => "testlock#2", "id" => "1"})
         end
-        
+
         t2 = Thread.new do
           sleep 2
           @client2.unlock("testlock#2")
