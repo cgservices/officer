@@ -193,8 +193,8 @@ module Officer
 
     protected
     def split_name(name)
-      if name.include?("#")
-        name_array = name.split("#")
+      if name.include?("|")
+        name_array = name.split("|")
         size = (name_array.last.to_i > 0 && name_array.size > 1) ? name_array.last.to_i : 1
       else
         size = 1

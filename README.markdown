@@ -72,9 +72,9 @@ Options:
 #### How to use n Semaphore
 
 To allow multiple clients to use the same lock you can use n Semaphore functionality.
-Officer can use a n Semaphore in stead of a Mutex by adding #n to the lock name.
+Officer can use a n Semaphore in stead of a Mutex by adding |n to the lock name.
 
-    client.lock 'some_lock_name#2' # will create a 2 semaphore
+    client.lock 'some_lock_name|2' # will create a 2 semaphore
 
 ### Unlock
 
