@@ -19,8 +19,30 @@ module Officer
       @keep_alive_enabled = options.include?(:keep_alive_enabled) ? options[:keep_alive_enabled] : true
       @thread = nil
       @lock = Mutex.new
+    end
 
-      connect
+    def connect
+      @lock.synchronize do
+        raise AlreadyConnectedError if connected?
+
+        case @socket_type
+          when 'TCP'
+            @socket = TCPSocket.new @host, @port.to_i
+          when 'UNIX'
+            @socket = UNIXSocket.new @socket_file
+          else
+            raise "Invalid socket type: #{@socket_type}"
+        end
+
+        @socket.fcntl Fcntl::F_SETFD, Fcntl::FD_CLOEXEC
+        @socket.setsockopt Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1
+
+        @thread = Thread.new { thread_main } unless @thread && @thread.alive?
+      end
+    end
+
+    def connected?
+      !@socket.nil?
     end
 
     def reconnect
@@ -54,20 +76,6 @@ module Officer
       result
     end
 
-    # Implement try_lock by using queue_max => 1
-    def try_lock name, options={}
-      result = execute :command => 'lock', :name => name_with_ns(name),
-        :timeout => options[:timeout], :queue_max => 1
-      strip_ns_from_hash result, 'name'
-
-      if result['name'] != name || !%w(acquired already_acquired timed_out queue_maxed).include?(result['result'])
-        force_shutdown
-      end
-
-      result
-
-    end
-
     def unlock name
       result = execute :command => 'unlock', :name => name_with_ns(name)
       strip_ns_from_hash result, 'name'
@@ -97,27 +105,6 @@ module Officer
           raise UnlockError unless response['result'] == 'released'
         end
       end
-    end
-
-    def with_try_lock name, options={}
-      response = try_lock name, options
-      result = response['result']
-      queue = (response['queue'] || []).join ','
-
-      raise LockTimeoutError.new("queue=#{queue}") if result == 'timed_out'
-      raise LockQueuedMaxError.new("queue=#{queue}") if result == 'queue_maxed'
-      raise LockError unless %w(acquired already_acquired).include?(result)
-
-      begin
-        yield
-      ensure
-        # Deal with nested with_lock calls.  Only the outer most call should tell the server to unlock.
-        if result == 'acquired'
-          response = unlock name
-          raise UnlockError unless response['result'] == 'released'
-        end
-      end
-
     end
 
     def reset
@@ -162,27 +149,9 @@ module Officer
     end
 
   private
-    def connect
-      @lock.synchronize do
-        raise AlreadyConnectedError if @socket
-
-        case @socket_type
-        when 'TCP'
-          @socket = TCPSocket.new @host, @port.to_i
-        when 'UNIX'
-          @socket = UNIXSocket.new @socket_file
-        else
-          raise "Invalid socket type: #{@socket_type}"
-        end
-
-        @socket.fcntl Fcntl::F_SETFD, Fcntl::FD_CLOEXEC
-        @socket.setsockopt Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1
-
-        @thread = Thread.new { thread_main } unless @thread && @thread.alive?
-      end
-    end
-
     def execute command
+      connect unless connected?
+
       @lock.synchronize do
         command = command.to_json
         @socket.write command + "\n"

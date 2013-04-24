@@ -75,7 +75,9 @@ describe Officer do
   describe "COMMAND: connections" do
     before do
       @client1 = Officer::Client.new
+      @client1.connect
       @client2 = Officer::Client.new
+      @client2.connect
 
       @client1_src_port = @client1.instance_variable_get('@socket').addr[1]
       @client2_src_port = @client2.instance_variable_get('@socket').addr[1]
@@ -106,7 +108,9 @@ describe Officer do
   describe "COMMAND: locks" do
     before do
       @client1 = Officer::Client.new
+      @client1.connect
       @client2 = Officer::Client.new
+      @client2.connect
 
       @client1_src_port = @client1.instance_variable_get('@socket').addr[1]
       @client2_src_port = @client2.instance_variable_get('@socket').addr[1]
@@ -157,6 +161,7 @@ describe Officer do
     describe "basic functionality" do
       before do
         @client = Officer::Client.new
+        @client.connect
         @client_src_port = @client.instance_variable_get('@socket').addr[1]
 
         @client2 = Officer::Client.new
@@ -185,49 +190,15 @@ describe Officer do
       it "should inform the client they don't have a lock if they try to unlock a lock that they don't have" do
         @client.unlock("testlock").should eq({"result" => "release_failed", "name" => "testlock"})
       end
-
-      it "should set a lock with try_lock" do
-        @client.try_lock("testlock").should eq({"result" => "acquired", "name" => "testlock", "id" => "0"})
-        @client.unlock("testlock")
-      end
-
-      it "should set a lock with try_lock with block" do
-        @client.with_try_lock("testlock") do
-          @client.my_locks.should eq({"value"=>["testlock"], "result"=>"my_locks"})
-        end
-      end
-
-      it "should continue the process if a try_lock doesn't succeed" do
-        @client.lock("testlock").should eq({"result" => "acquired", "name" => "testlock", "id" => "0"})
-        expected = {
-          "result" => "queue_maxed",
-          "name" => "testlock",
-          "queue" => ["127.0.0.1:#{@client_src_port}"]
-        }
-
-        actual = @client2.try_lock("testlock")
-        actual.class.should eq(Hash)
-        actual["result"].should eq(expected["result"])
-        actual["name"].should eq(expected["name"])
-        actual["queue"].sort.should eq(expected["queue"].sort)
-
-        @client.unlock("testlock")
-      end
-
-      it "should continue the process if a try_lock doesn't succeed with block" do
-        @client.lock("testlock").should eq({"result" => "acquired", "name" => "testlock", "id" => "0"})
-        lambda {
-          @client2.with_try_lock("testlock") {}
-        }.should raise_error(Officer::LockQueuedMaxError)
-        @client.unlock("testlock")
-      end
     end
 
     describe "locking options" do
       describe "OPTION: timeout" do
         before do
           @client1 = Officer::Client.new
+          @client1.connect
           @client2 = Officer::Client.new
+          @client2.connect
 
           @client1_src_port = @client1.instance_variable_get('@socket').addr[1]
           @client2_src_port = @client2.instance_variable_get('@socket').addr[1]
@@ -356,8 +327,11 @@ describe Officer do
     describe "NEW: server support for multiple locks" do
       before do
         @client1 = Officer::Client.new
+        @client1.connect
         @client2 = Officer::Client.new
+        @client2.connect
         @client3 = Officer::Client.new
+        @client3.connect
 
         @client1_src_port = @client1.instance_variable_get('@socket').addr[1]
         @client2_src_port = @client2.instance_variable_get('@socket').addr[1]
