@@ -20,6 +20,7 @@ RUN bundler install
 # Build gem
 RUN rake build
 
+# start officer
+RUN officer start -- -d /tmp
+
 EXPOSE 11500
-ENTRYPOINT ["officer"]
-CMD ["start", "-h", "0.0.0.0", "-p", "11500", "-l", "error", "-d", "/tmp"]
