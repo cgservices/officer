@@ -1,0 +1,63 @@
+# Ignore Docker files
+Dockerfile
+.dockerignore
+docker-compose.yml
+docker_build.sh
+docker_run.sh
+
+# Git files
+.git*
+
+# Ignore bundler config
+.bundle*
+/vendor/bundle
+
+# Ignore the default SQLite database.
+db/*.sqlite3
+db/*.sqlite3-journal
+
+# Ignore all logfiles and tempfiles.
+log/*
+tmp/*
+
+# Ignore Apple file system files
+**.DS_Store
+
+# Ignore other files
+*.rbc
+*.sassc
+.sass-cache
+capybara-*.html
+.rspec
+/public/system/*
+/coverage/
+/spec/tmp/*
+**.orig
+rerun.txt
+pickle-email-*.html
+/nbproject/
+/.idea/
+
+# Ignore assets
+/public/spree
+/app/compiled_views
+
+# Ignore translations yaml's
+/shared/
+
+# Ignore documentation assets and settings
+/.yardoc
+/docs
+/.deps
+
+# Ignore reports
+/turbulence
+rspec.xml
+
+# Rubocop files
+.rubocop*
+
+# Pry files
+.pryrc
+
+README.*

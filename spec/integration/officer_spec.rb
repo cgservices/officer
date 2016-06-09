@@ -2,7 +2,7 @@ require File.expand_path(File.dirname(__FILE__) + '/../spec_helper')
 
 describe Officer do
   before do
-    @server = Officer::Server.new :stats => true # :log_level => "debug"
+    @server = Officer::Server.new :stats => true, :log_level => "debug"
     @server.instance_variable_set("@enable_shutdown_port", true)
     @server_thread = Thread.new {@server.run}
     while !@server.running?; end
@@ -26,6 +26,7 @@ describe Officer do
 
     it "should allow a client to request and release a lock using block syntax" do
       @client.with_lock("testlock") do
+        puts "My_locks =="
         @client.my_locks.should eq({"value"=>["testlock"], "result"=>"my_locks"})
       end
     end
