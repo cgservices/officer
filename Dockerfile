@@ -1,4 +1,4 @@
-FROM ruby:latest
+FROM ruby:2.3.2
 MAINTAINER Pieter Martens "pieter@cg.nl"
 
 # Set correct environment variables.
@@ -21,6 +21,8 @@ RUN bundler install
 RUN rake build
 
 # start officer
-RUN officer start -- -d /tmp
+RUN chmod 0755 ./docker-initialize.sh
+
+CMD ./docker-initialize.sh
 
 EXPOSE 11500
