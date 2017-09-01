@@ -7,22 +7,20 @@ ENV HOME /root
 # Clean up APT when done.
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Clone application
-RUN git clone https://github.com/cgservices/officer.git
-
-# Set workdirectory to cloned application
+# Create application environment
+COPY . /officer
 WORKDIR /officer
 
 # Bundle gems
-RUN gem install bundler
-RUN bundler install
+RUN cd /officer && gem install bundler && git init
 
-# Build gem
-RUN rake build
+ARG SSH_KEY
+RUN eval `ssh-agent -s` > /dev/null \
+    && echo "$SSH_KEY" | ssh-add - > /dev/null \
+    && bundle install --jobs 4 --retry 5
 
-# start officer
 RUN chmod 0755 ./docker-initialize.sh
 
-CMD ./docker-initialize.sh
+CMD ./docker-initialize.sh 
 
 EXPOSE 11500

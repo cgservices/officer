@@ -1,4 +1,2 @@
-# docker-machine start
-# docker-machine env
-# eval $(docker-machine env)
-docker build -t creativegroup/officer .
+#!/usr/bin/env bash
+docker build --force-rm --no-cache --pull --build-arg SSH_KEY="$(< ~/.ssh/id_rsa)" -t creativegroup/officer:latest .
