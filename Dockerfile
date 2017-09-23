@@ -12,12 +12,9 @@ COPY . /officer
 WORKDIR /officer
 
 # Bundle gems
-RUN cd /officer && gem install bundler && git init
+RUN cd /officer && gem install bundler
 
-ARG SSH_KEY
-RUN eval `ssh-agent -s` > /dev/null \
-    && echo "$SSH_KEY" | ssh-add - > /dev/null \
-    && bundle install --jobs 4 --retry 5
+RUN bundle install --jobs 4 --retry 5
 
 RUN chmod 0755 ./docker-initialize.sh
 
