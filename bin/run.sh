@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -e
 
-cd /officer
-
 echo "## Checking & stopping previous officer process..."
 if [ -f /tmp/officer.pid ]; then
   kill -9 `cat /tmp/officer.pid` || true
