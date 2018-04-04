@@ -1,0 +1,6 @@
+version: "3"
+
+services:
+  officer:
+    container_name: officer
+    image: creativegroup/officer:integration
