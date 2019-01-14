@@ -8,7 +8,9 @@ build:
   stage: build
   image: docker:git
   before_script:
-    - printenv
+    - apk add --no-cache curl jq python py-pip
+    - pip install awscli
+    - $(aws ecr get-login --no-include-email --region eu-west-1)
     - echo 031993550471.dkr.ecr.eu-west-1.amazonaws.com | docker-credential-ecr-login get
   script:
     - docker build --file ./.docker/integration/Dockerfile --tag $REPOSITORY_URL .
