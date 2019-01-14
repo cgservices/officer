@@ -8,6 +8,7 @@ build:
   stage: build
   image: docker:git
   before_script:
+    - printenv
     - echo 031993550471.dkr.ecr.eu-west-1.amazonaws.com | docker-credential-ecr-login get
   script:
     - docker build --file ./.docker/integration/Dockerfile --tag $REPOSITORY_URL .
