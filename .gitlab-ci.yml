@@ -6,6 +6,7 @@ stages:
 
 build:
   stage: build
+  image: docker:git
   script:
     - docker build --file ./.docker/integration/Dockerfile --tag $REPOSITORY_URL .
     - docker push $REPOSITORY_URL
