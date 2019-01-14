@@ -7,6 +7,8 @@ stages:
 build:
   stage: build
   image: docker:git
+  before_script:
+    - docker-credential-ecr-login
   script:
     - docker build --file ./.docker/integration/Dockerfile --tag $REPOSITORY_URL .
     - docker push $REPOSITORY_URL
