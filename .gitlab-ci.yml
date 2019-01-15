@@ -12,7 +12,7 @@ build:
   stage: build
   image: docker:git
   before_script:
-    - rm docker-credential-ecr-login
+    - rm /usr/local/bin/docker-credential-ecr-login
     - apk add go musl-dev
     - go get -u github.com/awslabs/amazon-ecr-credential-helper/ecr-login/cli/docker-credential-ecr-login
     - mv /root/go/bin/docker-credential-ecr-login /usr/local/bin
