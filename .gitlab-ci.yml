@@ -15,7 +15,7 @@ build:
     - apk add go musl-dev
     - go get -u github.com/awslabs/amazon-ecr-credential-helper/ecr-login/cli/docker-credential-ecr-login
     - mv /root/go/bin/docker-credential-ecr-login /usr/local/bin/docker-credential-ecr-login-alpine
-    - echo > ~/.docker/config.json '{ "credsStore": "ecr-login-alpine" }'
+    - "echo > ~/.docker/config.json '{ \"credsStore\": \"ecr-login-alpine\" }'"
     - echo 031993550471.dkr.ecr.eu-west-1.amazonaws.com | docker-credential-ecr-login-alpine get
   script:
     - docker build --file ./.docker/integration/Dockerfile --tag $REPOSITORY_URL .
