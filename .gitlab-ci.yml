@@ -1,5 +1,5 @@
-include:
-  - https://gitlab.cgaws.cloud/infra/ci/raw/master/ruby.yml
+# include:
+#   - https://gitlab.cgaws.cloud/infra/ci/raw/master/ruby.yml
 
 variables:
   REPOSITORY_URL: 031993550471.dkr.ecr.eu-west-1.amazonaws.com/officer
@@ -12,7 +12,9 @@ build:
   stage: build
   image: docker:git
   before_script:
-    - echo 031993550471.dkr.ecr.eu-west-1.amazonaws.com | docker-credential-ecr-login get
+    - apk add go musl-dev
+    - go get -u github.com/awslabs/amazon-ecr-credential-helper/ecr-login/cli/docker-credential-ecr-login
+    - echo 031993550471.dkr.ecr.eu-west-1.amazonaws.com | /root/go/bin/docker-credential-ecr-login get
   script:
     - docker build --file ./.docker/integration/Dockerfile --tag $REPOSITORY_URL .
     - docker push $REPOSITORY_URL
