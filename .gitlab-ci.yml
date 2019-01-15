@@ -12,8 +12,10 @@ build:
   stage: build
   image: docker:git
   before_script:
+    - rm docker-credential-ecr-login
     - apk add go musl-dev
     - go get -u github.com/awslabs/amazon-ecr-credential-helper/ecr-login/cli/docker-credential-ecr-login
+    - mv /root/go/bin/docker-credential-ecr-login /usr/local/bin
     - echo 031993550471.dkr.ecr.eu-west-1.amazonaws.com | /root/go/bin/docker-credential-ecr-login get
   script:
     - docker build --file ./.docker/integration/Dockerfile --tag $REPOSITORY_URL .
