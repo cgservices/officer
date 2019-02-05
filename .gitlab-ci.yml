@@ -11,11 +11,6 @@ stages:
 build:
   stage: build
   image: docker:git
-  before_script:
-    - apk add go musl-dev
-    - go get -u github.com/awslabs/amazon-ecr-credential-helper/ecr-login/cli/docker-credential-ecr-login
-    - mv /root/go/bin/docker-credential-ecr-login /usr/local/bin/docker-credential-ecr-login-alpine
-    - "echo > ~/.docker/config.json '{ \"credsStore\": \"ecr-login-alpine\" }'"
   script:
     - docker build --file ./.docker/integration/Dockerfile --tag $REPOSITORY_URL/officer:latest .
     - docker push $REPOSITORY_URL/officer
