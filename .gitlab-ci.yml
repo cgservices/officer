@@ -1,0 +1,13 @@
+include:
+  - project: infra/ci
+    file: docker.yml
+
+  - project: infra/ci
+    file: ruby.yml
+
+variables:
+  RUBOCOP_DISABLED: 'true'
+  BRAKEMAN_DISABLED: 'true'
+
+rspec:
+  image: $ECR_REGISTRY/$CI_PROJECT_NAME:test

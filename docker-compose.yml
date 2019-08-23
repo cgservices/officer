@@ -1,0 +1,20 @@
+version: '3.7'
+
+services:
+  officer: &officer
+    build:
+      context: .
+      target: dev
+    ports:
+      - 11500:11500
+    volumes:
+      - .:/usr/src/app
+      - bundle:/usr/local/bundle
+
+  tests:
+    <<: *officer
+    command: bundle exec rspec
+    ports: []
+
+volumes:
+  bundle:

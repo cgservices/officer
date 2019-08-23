@@ -2,7 +2,7 @@ require File.expand_path(File.dirname(__FILE__) + '/../spec_helper')
 
 describe Officer do
   before do
-    @server = Officer::Server.new :stats => true, :log_level => "debug"
+    @server = Officer::Server.new :stats => true, :log_level => "info"
     @server.instance_variable_set("@enable_shutdown_port", true)
     @server_thread = Thread.new {@server.run}
     while !@server.running?; end
